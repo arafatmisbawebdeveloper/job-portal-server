@@ -5,6 +5,16 @@ const app = express();
 const port = process.env.port || 3000;
 const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
 
+app.use(cors());
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.send('Welcome to the Job portal API');
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
 
 const uri = `mongodb+srv://${process.env.db_user}:${process.env.db_password}@cluster0.l2zb9kx.mongodb.net/?appName=Cluster0`;
 
@@ -26,7 +36,9 @@ async function run() {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
     //job related api
+    
     const jobCollection = client.db("jobPortal").collection("jobs");
+    const jobApplicationCollection = client.db("jobPortal").collection("job_applications");
     app.get('/jobs', async (req, res) => {
       const cursor = jobCollection.find();
       const result = await cursor.toArray();
@@ -39,6 +51,44 @@ async function run() {
       res.send(result);
     });
 
+    //job application related api
+    app.post('/job-applications', async (req, res) => {
+      const applicationData = req.body;
+      const result = await jobApplicationCollection.insertOne(applicationData);
+      res.send(result);
+    });
+
+    //application deletion
+    app.delete('/job-applications/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await jobApplicationCollection.deleteOne(query);
+    });
+
+    //get job data by email
+    app.get('/job-application',async (req,res) => {
+      const email = req.query.email;
+      const query = {userEmail:email};
+      const result = await jobApplicationCollection.find(query).toArray();
+      //unusual way to applicant's data using email
+
+      for(const application of result) {
+        const query1 = {_id: new ObjectId(application.jobId)};
+        const job = await jobCollection.findOne(query1);
+        console.log(application.jobId);
+        if(job) {
+          application.title = job.title;
+          application.company = job.company;
+          application.location = job.location;
+          application.company_logo = job.company_logo;
+        }
+      }
+      
+      
+      
+      res.send(result);
+    })
+
 } finally {
     // Ensures that the client will close when you finish/error
     //await client.close();
@@ -47,13 +97,3 @@ async function run() {
 run().catch(console.dir);
 
 
-app.use(cors());
-app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.send('Welcome to the Job portal API');
-});
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});

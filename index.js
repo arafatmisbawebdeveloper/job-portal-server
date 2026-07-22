@@ -8,14 +8,6 @@ const { MongoClient, ServerApiVersion,ObjectId } = require('mongodb');
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Welcome to the Job portal API');
-});
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
-
 const uri = `mongodb+srv://${process.env.db_user}:${process.env.db_password}@cluster0.l2zb9kx.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -58,11 +50,15 @@ async function run() {
       res.send(result);
     });
 
-    //application deletion
     app.delete('/job-applications/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await jobApplicationCollection.deleteOne(query);
+
+      try {
+        const result = await jobApplicationCollection.deleteOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (error) {
+        res.status(400).send({ message: 'Invalid application id' });
+      }
     });
 
     //get job data by email
@@ -75,7 +71,7 @@ async function run() {
       for(const application of result) {
         const query1 = {_id: new ObjectId(application.jobId)};
         const job = await jobCollection.findOne(query1);
-        console.log(application.jobId);
+        
         if(job) {
           application.title = job.title;
           application.company = job.company;
@@ -97,3 +93,10 @@ async function run() {
 run().catch(console.dir);
 
 
+app.get('/', (req, res) => {
+  res.send('Welcome to the Job portal API');
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
